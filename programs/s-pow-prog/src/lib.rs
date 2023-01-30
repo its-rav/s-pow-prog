@@ -46,4 +46,8 @@ pub mod s_pow_prog {
     pub fn reject_proposal(ctx: Context<RejectProposal>) -> Result<()> {
         return reject_proposal::exec(ctx);
     }
+
+    pub fn accept_proposal(ctx: Context<AcceptProposal>) -> Result<()> {
+        return accept_proposal::exec(ctx);
+    }
 }

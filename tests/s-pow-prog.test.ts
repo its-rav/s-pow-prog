@@ -419,6 +419,58 @@ describe("[s-pow-prog]", () => {
   });
 
   it("[Recipient] accept proposal", async () => {
+    const identifier = "T8";
+    const title = "[Recipient] accept proposal";
+    const amount = new BN(100 * LAMPORTS_PER_SOL);
+    const tags = ["xyz"];
+    const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
+    const subtitle = "[Recipient] accept proposal";
+
+    const [pda, signature] = await createProposal(
+      proposer,
+      spender,
+      recipient,
+      identifier,
+      title,
+      token,
+      amount,
+      tags,
+      coverCid,
+      subtitle,
+      program
+    );
+
+    const dataAfterCreated = await program.account.proposal.fetch(pda);
+    expect(dataAfterCreated.status).to.deep.equal({ default: {} });
+    expect(dataAfterCreated.title).to.equal(title);
     
+    await program.methods
+      .approveProposal()
+      .accounts({
+        approver: spender.publicKey,
+        proposal: pda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([spender])
+      .rpc();
+      
+    const dataAfterApproved = await program.account.proposal.fetch(pda);
+    expect(dataAfterApproved.status).to.deep.equal({ approved: {} });
+    expect(dataAfterApproved.title).to.equal(title);
+
+    await program.methods
+      .acceptProposal()
+      .accounts({
+        signer: recipient.publicKey,
+        proposal: pda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([recipient])
+      .rpc();
+
+    const dataAfterAccepted = await program.account.proposal.fetch(pda);
+    expect(dataAfterAccepted.status).to.deep.equal({ claimed: {} });
+    expect(dataAfterAccepted.title).to.equal(title);
+
   });
 });
