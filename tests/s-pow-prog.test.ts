@@ -378,7 +378,47 @@ describe("[s-pow-prog]", () => {
     expect(dataAfter.title).to.equal(title);
   });
 
-  it("[Approver] reject proposal", async () => {});
+  it("[Approver] reject proposal", async () => {
+    const identifier = "T7";
+    const title = "[Approver] reject proposal";
+    const amount = new BN(100 * LAMPORTS_PER_SOL);
+    const tags = ["xyz"];
+    const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
+    const subtitle = "[Approver] reject proposal";
 
-  it("[Recipient] accept proposal", async () => {});
+    const [pda, signature] = await createProposal(
+      proposer,
+      spender,
+      recipient,
+      identifier,
+      title,
+      token,
+      amount,
+      tags,
+      coverCid,
+      subtitle,
+      program
+    );
+
+    const data = await program.account.proposal.fetch(pda);
+    expect(data.status).to.deep.equal({ default: {} });
+    expect(data.title).to.equal(title);
+
+    await program.methods
+      .rejectProposal()
+      .accounts({
+        signer: spender.publicKey,
+        proposal: pda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([spender])
+      .rpc();
+    const dataAfter = await program.account.proposal.fetch(pda);
+    expect(dataAfter.status).to.deep.equal({ rejected: {} });
+    expect(dataAfter.title).to.equal(title);
+  });
+
+  it("[Recipient] accept proposal", async () => {
+    
+  });
 });
