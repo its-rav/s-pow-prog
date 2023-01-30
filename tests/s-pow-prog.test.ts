@@ -309,9 +309,8 @@ describe("[s-pow-prog]", () => {
 
     const data = await program.account.proposal.fetch(pda);
     expect(data.identifier).to.equal(identifier);
-    const balanceOnProposalCreated = await program.provider.connection.getBalance(
-      proposer.publicKey
-    );
+    const balanceOnProposalCreated =
+      await program.provider.connection.getBalance(proposer.publicKey);
 
     await program.methods
       .cancelProposal()
@@ -327,7 +326,6 @@ describe("[s-pow-prog]", () => {
       proposer.publicKey
     );
 
-    
     expect(balanceBefore).to.greaterThan(balanceOnProposalCreated);
     expect(balanceOnProposalCreated).to.lessThan(balanceAfter);
     expect(balanceBefore).to.equal(balanceAfter);
@@ -339,7 +337,46 @@ describe("[s-pow-prog]", () => {
     }
   });
 
-  it("[Approver] approve proposal", async () => {});
+  it("[Approver] approve proposal", async () => {
+    const identifier = "T6";
+    const title = "[Approver] approve proposal";
+    const amount = new BN(100 * LAMPORTS_PER_SOL);
+    const tags = ["xyz"];
+    const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
+    const subtitle = "[Approver] approve proposal";
+
+    const [pda, signature] = await createProposal(
+      proposer,
+      spender,
+      recipient,
+      identifier,
+      title,
+      token,
+      amount,
+      tags,
+      coverCid,
+      subtitle,
+      program
+    );
+
+    const data = await program.account.proposal.fetch(pda);
+    expect(data.status).to.deep.equal({ default: {} });
+    expect(data.title).to.equal(title);
+
+    await program.methods
+      .approveProposal()
+      .accounts({
+        approver: spender.publicKey,
+        proposal: pda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([spender])
+      .rpc();
+
+    const dataAfter = await program.account.proposal.fetch(pda);
+    expect(dataAfter.status).to.deep.equal({ approved: {} });
+    expect(dataAfter.title).to.equal(title);
+  });
 
   it("[Approver] reject proposal", async () => {});
 
