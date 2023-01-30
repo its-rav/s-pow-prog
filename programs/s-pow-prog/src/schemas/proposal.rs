@@ -1,5 +1,3 @@
-use std::mem;
-
 use crate::constants::*;
 use anchor_lang::prelude::*;
 
@@ -22,6 +20,7 @@ impl Default for ApprovalStatus {
 pub struct Proposal {
     pub recipient: Pubkey,
     pub spender: Pubkey,
+    pub identifier: String,
     pub title: String,
     pub spl: Pubkey,
     pub amount: u64,
@@ -39,6 +38,7 @@ impl Proposal {
         8 +  // discriminator
         PUBKEY_SIZE + // recipient
         PUBKEY_SIZE + // spender
+        STRING_OVERHEAD_SIZE + MAX_IDENTIFIER_LENGTH  + // identifier
         STRING_OVERHEAD_SIZE + MAX_TITLE_LENGTH  + // title
         PUBKEY_SIZE + // spl
         U64_SIZE + // amount

@@ -22,6 +22,7 @@ pub mod s_pow_prog {
         ctx: Context<CreateProposal>,
         spender: Pubkey,
         recipient: Pubkey,
+        identifier: String,
         title: String,
         spl: Pubkey,
         amount: u64,
@@ -29,19 +30,16 @@ pub mod s_pow_prog {
         cover_cid: String,
         subtitle: String,
     ) -> Result<()> {
-        create_proposal::exec(
-            ctx, spender, recipient, title, spl, amount, tags, cover_cid, subtitle
+        return create_proposal::exec(
+            ctx, spender, recipient, identifier, title, spl, amount, tags, cover_cid, subtitle,
         );
-
-        Ok(())
     }
 
     pub fn cancel_proposal(ctx: Context<CancelProposal>) -> Result<()> {
-        cancel_proposal::exec(ctx);
+        return cancel_proposal::exec(ctx);
+    }
 
-        Ok(())
+    pub fn approve_proposal(ctx: Context<ApproveProposal>) -> Result<()> {
+        return approve_proposal::exec(ctx);
     }
 }
-
-#[derive(Accounts)]
-pub struct Initialize {}

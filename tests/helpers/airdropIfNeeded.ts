@@ -1,6 +1,8 @@
 import { AnchorProvider } from "@project-serum/anchor";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
+export const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+
 export async function airdrop(
   provider: AnchorProvider,
   pubkey: PublicKey,

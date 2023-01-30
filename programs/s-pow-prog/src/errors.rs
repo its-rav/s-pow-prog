@@ -2,6 +2,8 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum ErrorCodes {
+  #[msg("Maximum Identifier length exceeded")]
+  MaxIdentifierLenExceeded,
   #[msg("Maximum title length exceeded")]
   MaxTitleLenExceeded,
   #[msg("Maximum reason length exceeded")]
@@ -19,5 +21,7 @@ pub enum ErrorCodes {
 
   #[msg("Invalid account")]
   InvalidAccount,
+  #[msg("Invalid proposal status")]
+  InvalidProposalStatus,
 	
 }

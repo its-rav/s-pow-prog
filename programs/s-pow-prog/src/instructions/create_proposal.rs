@@ -2,7 +2,6 @@ use crate::errors::ErrorCodes;
 use crate::schemas::proposal::*;
 use crate::constants::*;
 use anchor_lang::prelude::*;
-
 #[event]
 pub struct ProposalCreatedEvent {
   pub recipient: Pubkey,
@@ -19,7 +18,7 @@ pub struct ProposalCreatedEvent {
 #[instruction(
   spender: Pubkey,
   recipient: Pubkey,
-  title: String,
+  identifier: String,
 )]
 
 pub struct CreateProposal<'info> {
@@ -32,7 +31,7 @@ pub struct CreateProposal<'info> {
       PROPOSAL_SEED.as_ref(), 
       spender.as_ref(), 
       recipient.as_ref(), 
-      title.as_bytes()
+      identifier.as_bytes()
       ],
     bump,
     payer = proposer, 
@@ -61,6 +60,7 @@ pub fn exec(
     ctx: Context<CreateProposal>, 
     spender: Pubkey,
     recipient: Pubkey,
+    identifier: String,
     title: String, 
     spl: Pubkey,
     amount: u64,
@@ -71,27 +71,32 @@ pub fn exec(
   let proposal = &mut ctx.accounts.proposal;
 
   if cover_cid.as_bytes().len() > MAX_COVER_CID_LENGTH {
-    return Err(ErrorCodes::MaxCoverCidLenExceeded.into())
+    return err!(ErrorCodes::MaxCoverCidLenExceeded);
+	}
+  
+	if identifier.as_bytes().len() > MAX_IDENTIFIER_LENGTH {
+    return err!(ErrorCodes::MaxIdentifierLenExceeded);
 	}
 
 	if title.as_bytes().len() > MAX_TITLE_LENGTH {
-			return Err(ErrorCodes::MaxTitleLenExceeded.into())
+    return err!(ErrorCodes::MaxTitleLenExceeded);
 	}
 
 	if subtitle.as_bytes().len() > MAX_SUBTITLE_LENGTH {
-			return Err(ErrorCodes::MaxSubtitleLenExceeded.into())
+    return err!(ErrorCodes::MaxSubtitleLenExceeded);
 	}
 
 	if tags.iter().any(|tag| tag.as_bytes().len() > MAX_TAG_LENGTH) {
-		return Err(ErrorCodes::MaxTagLenExceeded.into())
+    return err!(ErrorCodes::MaxTagLenExceeded);
 	}
 
 	if tags.len() > MAX_TAGS {
-			return Err(ErrorCodes::MaxNumberOfTagsExceeded.into())
+    return err!(ErrorCodes::MaxNumberOfTagsExceeded);
 	}
 
   proposal.spender = spender;
   proposal.recipient = recipient;
+  proposal.identifier = identifier.clone();
   proposal.title = title.clone();
   proposal.spl = spl;
   proposal.amount = amount;

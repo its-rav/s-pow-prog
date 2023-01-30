@@ -1,4 +1,4 @@
-export const PROPOSAL_SEED = 'proposal'
+export const PROPOSAL_SEED = "proposal";
 
 // Mint A Decimals
 export const MINT_A_DECIMALS = 6;

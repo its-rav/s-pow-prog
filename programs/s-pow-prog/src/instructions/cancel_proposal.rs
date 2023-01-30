@@ -12,11 +12,8 @@ pub struct CancelProposal<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
 
-    /// CHECK: The proposer is not dangerous because we don't read or write from it
-    pub proposer: UncheckedAccount<'info>,
-
     #[account(mut,
-        constraint = *signer.key == proposal.proposer || *signer.key == proposal.spender && proposer.key() == proposal.proposer 
+        constraint = *signer.key == proposal.proposer || *signer.key == proposal.spender
         @ ErrorCodes::InvalidAccount
     )]
     pub proposal: Account<'info, Proposal>,
@@ -30,7 +27,7 @@ pub fn exec(ctx: Context<CancelProposal>) -> Result<()> {
     // Only allow cancel of proposals that are not approved
     if proposal.status != ApprovalStatus::Approved {
         // Close the proposal account and return the lamports to the proposer
-        proposal.close(ctx.accounts.proposer.to_account_info())?
+        proposal.close(ctx.accounts.signer.to_account_info())?
     }
 
     // Emit the event ProposalCancelledEvent

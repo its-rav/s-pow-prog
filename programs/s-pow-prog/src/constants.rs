@@ -15,6 +15,7 @@ pub const OPTION_SIZE: usize = 1;
 
 pub const PROPOSAL_SEED: &[u8] = b"proposal";
 
+pub const MAX_IDENTIFIER_LENGTH: usize = 32;
 pub const MAX_COVER_CID_LENGTH: usize = 128;
 pub const MAX_SUBTITLE_LENGTH: usize = 256;
 pub const MAX_TITLE_LENGTH: usize = 256;
