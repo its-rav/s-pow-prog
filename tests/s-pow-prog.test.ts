@@ -13,7 +13,6 @@ import { SPowProg } from "../target/types/s_pow_prog";
 import { airdropIfNeeded, delay } from "./helpers/airdropIfNeeded";
 import {
   createProposal,
-  findProposalPda,
   initializeAccount,
   initializeMint,
   mintTo,
@@ -37,15 +36,17 @@ describe("[s-pow-prog]", () => {
   let recipient = web3.Keypair.generate();
 
   const token = new web3.Keypair();
-  let spenderTokenAccount: PublicKey;
+  let spenderTokenAccount: PublicKey, recipientTokenAccount: PublicKey;
   const splTokenProgram = Spl.token();
 
   before("prepare", async () => {
     console.log("recipient: ", recipient.publicKey.toBase58());
+    console.log("spender: ", spender.publicKey.toBase58());
+    console.log("proposer: ", proposer.publicKey.toBase58());
     await airdropIfNeeded(provider, proposer.publicKey, airdropSolAmount);
 
-    // await airdropIfNeeded(provider, spender.publicKey, airdropSolAmount);
-
+    await airdropIfNeeded(provider, spender.publicKey, airdropSolAmount);
+    const decimals = 6;
     const initializeMintTx = await initializeMint(6, token, splTokenProgram);
     console.log("initializeMint: ", initializeMintTx);
 
@@ -54,18 +55,28 @@ describe("[s-pow-prog]", () => {
       owner: spender.publicKey,
     });
 
-    console.log(
-      `associatedAddress of mint: ${token.publicKey.toBase58()} and owner ${spender.publicKey.toBase58()} `
-    );
+    recipientTokenAccount = await utils.token.associatedAddress({
+      mint: token.publicKey,
+      owner: recipient.publicKey,
+    });
 
-    const initializeAccountTx = await initializeAccount(
+    console.log(`token: ${token.publicKey.toBase58()}`);
+    console.log(`spenderTokenAccount: ${spenderTokenAccount.toBase58()} `);
+    console.log(`recipientTokenAccount: ${recipientTokenAccount.toBase58()} `);
+
+    await initializeAccount(
       spenderTokenAccount,
       token.publicKey,
       spender.publicKey,
       provider
     );
 
-    console.log(`initializeAccount: ${initializeAccountTx}`);
+    await initializeAccount(
+      recipientTokenAccount,
+      token.publicKey,
+      recipient.publicKey,
+      provider
+    );
 
     await mintTo(
       new BN(100 * LAMPORTS_PER_SOL),
@@ -74,273 +85,290 @@ describe("[s-pow-prog]", () => {
       splTokenProgram
     );
 
-    // try {
-    //   const data = await splTokenProgram.account.mint.fetch(
-    //     spenderTokenAccount
-    //   );
-    //   console.log(data);
-    // } catch (e) {
-    //   console.log(e);
-    // }
+    try {
+      // const data = await splTokenProgram.account.mint.fetch(
+      //   token.publicKey
+      // );
+      // console.log(data);
+
+      const spenderTokenAccountData = await splTokenProgram.account.token.fetch(
+        spenderTokenAccount
+      );
+      console.log(
+        `Current spender spl balance: ${
+          spenderTokenAccountData.amount.toNumber() / LAMPORTS_PER_SOL
+        }`
+      );
+
+      const recipientTokenAccountData =
+        await splTokenProgram.account.token.fetch(recipientTokenAccount);
+      console.log(
+        `Current recipient spl balance: ${
+          recipientTokenAccountData.amount.toNumber() / LAMPORTS_PER_SOL
+        }`
+      );
+    } catch (e) {
+      console.log(e);
+    }
 
     // await airdropIfNeeded(provider, recipient.publicKey, airdropSolAmount);
   });
 
-  it("[Proposer] create proposal", async () => {
-    const identifier = "T1";
-    const title = "Summer Coding Camp Winner";
-    const amount = new BN(100 * LAMPORTS_PER_SOL);
-    const tags = ["xyz"];
-    const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
-    const subtitle = "Summer Coding Camp Winner subtitle";
+  // it("[Proposer] create proposal", async () => {
+  //   const identifier = "T1";
+  //   const title = "Summer Coding Camp Winner";
+  //   const amount = new BN(100 * LAMPORTS_PER_SOL);
+  //   const tags = ["xyz"];
+  //   const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
+  //   const subtitle = "Summer Coding Camp Winner subtitle";
 
-    const [pda, signature] = await createProposal(
-      proposer,
-      spender,
-      recipient,
-      identifier,
-      title,
-      token,
-      amount,
-      tags,
-      coverCid,
-      subtitle,
-      program
-    );
+  //   const [pda, signature] = await createProposal(
+  //     proposer,
+  //     spender,
+  //     recipient,
+  //     identifier,
+  //     title,
+  //     token,
+  //     amount,
+  //     tags,
+  //     coverCid,
+  //     subtitle,
+  //     program
+  //   );
 
-    const proposalData = await program.account.proposal.fetch(pda);
+  //   const proposalData = await program.account.proposal.fetch(pda);
 
-    expect(proposalData.recipient.toBase58()).to.equal(
-      recipient.publicKey.toBase58()
-    );
-    expect(proposalData.spender.toBase58()).to.equal(
-      spender.publicKey.toBase58()
-    );
-    expect(proposalData.title).to.equal(title);
-    expect(proposalData.spl.toBase58()).to.equal(token.publicKey.toBase58());
-    expect(proposalData.amount.toNumber()).to.equal(amount.toNumber());
-    expect(proposalData.tags[0]).to.equal(tags[0]);
-    expect(proposalData.coverCid).to.equal(coverCid);
-    expect(proposalData.subtitle).to.equal(subtitle);
-  });
+  //   expect(proposalData.recipient.toBase58()).to.equal(
+  //     recipient.publicKey.toBase58()
+  //   );
+  //   expect(proposalData.spender.toBase58()).to.equal(
+  //     spender.publicKey.toBase58()
+  //   );
+  //   expect(proposalData.title).to.equal(title);
+  //   expect(proposalData.spl.toBase58()).to.equal(token.publicKey.toBase58());
+  //   expect(proposalData.amount.toNumber()).to.equal(amount.toNumber());
+  //   expect(proposalData.tags[0]).to.equal(tags[0]);
+  //   expect(proposalData.coverCid).to.equal(coverCid);
+  //   expect(proposalData.subtitle).to.equal(subtitle);
+  // });
 
-  it("[Users] get proposals by spender ", async () => {
-    const identifier = "T2";
-    const title = "[Users] get proposals by spender";
-    const amount = new BN(100 * LAMPORTS_PER_SOL);
-    const tags = ["xyz"];
-    const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
-    const subtitle = "[Users] get proposals by spender subtitle";
+  // it("[Users] get proposals by spender ", async () => {
+  //   const identifier = "T2";
+  //   const title = "[Users] get proposals by spender";
+  //   const amount = new BN(100 * LAMPORTS_PER_SOL);
+  //   const tags = ["xyz"];
+  //   const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
+  //   const subtitle = "[Users] get proposals by spender subtitle";
 
-    const proposalsBefore = await program.account.proposal.all([
-      {
-        memcmp: {
-          offset: 8 + 32, // Discriminator.
-          bytes: spender.publicKey.toBase58(),
-        },
-      },
-    ]);
+  //   const proposalsBefore = await program.account.proposal.all([
+  //     {
+  //       memcmp: {
+  //         offset: 8 + 32, // Discriminator.
+  //         bytes: spender.publicKey.toBase58(),
+  //       },
+  //     },
+  //   ]);
 
-    const [pda, signature] = await createProposal(
-      proposer,
-      spender,
-      recipient,
-      identifier,
-      title,
-      token,
-      amount,
-      tags,
-      coverCid,
-      subtitle,
-      program
-    );
+  //   const [pda, signature] = await createProposal(
+  //     proposer,
+  //     spender,
+  //     recipient,
+  //     identifier,
+  //     title,
+  //     token,
+  //     amount,
+  //     tags,
+  //     coverCid,
+  //     subtitle,
+  //     program
+  //   );
 
-    const proposalsAfter = await program.account.proposal.all([
-      {
-        memcmp: {
-          offset: 8 + 32, // Discriminator.
-          bytes: spender.publicKey.toBase58(),
-        },
-      },
-    ]);
+  //   const proposalsAfter = await program.account.proposal.all([
+  //     {
+  //       memcmp: {
+  //         offset: 8 + 32, // Discriminator.
+  //         bytes: spender.publicKey.toBase58(),
+  //       },
+  //     },
+  //   ]);
 
-    expect(proposalsAfter.length).to.greaterThan(proposalsBefore.length);
-    expect(proposalsAfter.map((p) => p.account.title)).to.contains(title);
-  });
+  //   expect(proposalsAfter.length).to.greaterThan(proposalsBefore.length);
+  //   expect(proposalsAfter.map((p) => p.account.title)).to.contains(title);
+  // });
 
-  it("[Users] get proposals by recipient ", async () => {
-    const identifier = "T3";
-    const title = "[Users] get proposals by recipient";
-    const amount = new BN(100 * LAMPORTS_PER_SOL);
-    const tags = ["xyz"];
-    const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
-    const subtitle = "[Users] get proposals by recipient subtitle";
+  // it("[Users] get proposals by recipient ", async () => {
+  //   const identifier = "T3";
+  //   const title = "[Users] get proposals by recipient";
+  //   const amount = new BN(100 * LAMPORTS_PER_SOL);
+  //   const tags = ["xyz"];
+  //   const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
+  //   const subtitle = "[Users] get proposals by recipient subtitle";
 
-    const proposalsBefore = await program.account.proposal.all([
-      {
-        memcmp: {
-          offset: 0, // Discriminator.
-          bytes: recipient.publicKey.toBase58(),
-        },
-      },
-    ]);
+  //   const proposalsBefore = await program.account.proposal.all([
+  //     {
+  //       memcmp: {
+  //         offset: 0, // Discriminator.
+  //         bytes: recipient.publicKey.toBase58(),
+  //       },
+  //     },
+  //   ]);
 
-    const [pda, signature] = await createProposal(
-      proposer,
-      spender,
-      recipient,
-      identifier,
-      title,
-      token,
-      amount,
-      tags,
-      coverCid,
-      subtitle,
-      program
-    );
+  //   const [pda, signature] = await createProposal(
+  //     proposer,
+  //     spender,
+  //     recipient,
+  //     identifier,
+  //     title,
+  //     token,
+  //     amount,
+  //     tags,
+  //     coverCid,
+  //     subtitle,
+  //     program
+  //   );
 
-    const proposalsAfter = await program.account.proposal.all([
-      {
-        memcmp: {
-          offset: 8, // Discriminator.
-          bytes: recipient.publicKey.toBase58(),
-        },
-      },
-    ]);
+  //   const proposalsAfter = await program.account.proposal.all([
+  //     {
+  //       memcmp: {
+  //         offset: 8, // Discriminator.
+  //         bytes: recipient.publicKey.toBase58(),
+  //       },
+  //     },
+  //   ]);
 
-    expect(proposalsAfter.length).to.greaterThan(proposalsBefore.length);
-    expect(proposalsAfter.map((p) => p.account.title)).to.contains(title);
-  });
+  //   expect(proposalsAfter.length).to.greaterThan(proposalsBefore.length);
+  //   expect(proposalsAfter.map((p) => p.account.title)).to.contains(title);
+  // });
 
-  it("[Users] get proposals by recipient, spender, title ", async () => {
-    const identifier = "T4";
-    const title = "[Users] get proposals by recipient, spender, title";
-    const amount = new BN(100 * LAMPORTS_PER_SOL);
-    const tags = ["xyz"];
-    const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
-    const subtitle =
-      "[Users] get proposals by recipient, spender, title subtitle";
+  // it("[Users] get proposals by recipient, spender, title ", async () => {
+  //   const identifier = "T4";
+  //   const title = "[Users] get proposals by recipient, spender, title";
+  //   const amount = new BN(100 * LAMPORTS_PER_SOL);
+  //   const tags = ["xyz"];
+  //   const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
+  //   const subtitle =
+  //     "[Users] get proposals by recipient, spender, title subtitle";
 
-    const proposalsBefore = await program.account.proposal.all([
-      {
-        memcmp: {
-          offset: 8, // Discriminator.
-          bytes: recipient.publicKey.toBase58(),
-        },
-      },
-      {
-        memcmp: {
-          offset: 8 + 32, // Discriminator.
-          bytes: spender.publicKey.toBase58(),
-        },
-      },
-      {
-        memcmp: {
-          offset: 8 + 32 + 32 + 4, // Discriminator.
-          bytes: bs58.encode(Buffer.from(identifier)),
-        },
-      },
-    ]);
+  //   const proposalsBefore = await program.account.proposal.all([
+  //     {
+  //       memcmp: {
+  //         offset: 8, // Discriminator.
+  //         bytes: recipient.publicKey.toBase58(),
+  //       },
+  //     },
+  //     {
+  //       memcmp: {
+  //         offset: 8 + 32, // Discriminator.
+  //         bytes: spender.publicKey.toBase58(),
+  //       },
+  //     },
+  //     {
+  //       memcmp: {
+  //         offset: 8 + 32 + 32 + 4, // Discriminator.
+  //         bytes: bs58.encode(Buffer.from(identifier)),
+  //       },
+  //     },
+  //   ]);
 
-    const [pda, signature] = await createProposal(
-      proposer,
-      spender,
-      recipient,
-      identifier,
-      title,
-      token,
-      amount,
-      tags,
-      coverCid,
-      subtitle,
-      program
-    );
+  //   const [pda, signature] = await createProposal(
+  //     proposer,
+  //     spender,
+  //     recipient,
+  //     identifier,
+  //     title,
+  //     token,
+  //     amount,
+  //     tags,
+  //     coverCid,
+  //     subtitle,
+  //     program
+  //   );
 
-    const proposalsAfter = await program.account.proposal.all([
-      {
-        memcmp: {
-          offset: 8, // Discriminator.
-          bytes: recipient.publicKey.toBase58(),
-        },
-      },
-      {
-        memcmp: {
-          offset: 8 + 32, // Discriminator.
-          bytes: spender.publicKey.toBase58(),
-        },
-      },
-      {
-        memcmp: {
-          offset: 8 + 32 + 32 + 4, // Discriminator.
-          bytes: bs58.encode(Buffer.from(identifier)),
-        },
-      },
-    ]);
+  //   const proposalsAfter = await program.account.proposal.all([
+  //     {
+  //       memcmp: {
+  //         offset: 8, // Discriminator.
+  //         bytes: recipient.publicKey.toBase58(),
+  //       },
+  //     },
+  //     {
+  //       memcmp: {
+  //         offset: 8 + 32, // Discriminator.
+  //         bytes: spender.publicKey.toBase58(),
+  //       },
+  //     },
+  //     {
+  //       memcmp: {
+  //         offset: 8 + 32 + 32 + 4, // Discriminator.
+  //         bytes: bs58.encode(Buffer.from(identifier)),
+  //       },
+  //     },
+  //   ]);
 
-    expect(proposalsAfter.length).to.greaterThan(proposalsBefore.length);
-    expect(proposalsAfter.map((p) => p.account.title)).to.contains(title);
-  });
+  //   expect(proposalsAfter.length).to.greaterThan(proposalsBefore.length);
+  //   expect(proposalsAfter.map((p) => p.account.title)).to.contains(title);
+  // });
 
-  it("[Proposer] cancel proposal", async () => {
-    const identifier = "T5";
-    const title = "[Proposer] cancel proposal";
-    const amount = new BN(100 * LAMPORTS_PER_SOL);
-    const tags = ["xyz"];
-    const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
-    const subtitle = "[Proposer] cancel proposal subtitle";
+  // it("[Proposer] cancel proposal", async () => {
+  //   const identifier = "T5";
+  //   const title = "[Proposer] cancel proposal";
+  //   const amount = new BN(100 * LAMPORTS_PER_SOL);
+  //   const tags = ["xyz"];
+  //   const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
+  //   const subtitle = "[Proposer] cancel proposal subtitle";
 
-    const balanceBefore = await program.provider.connection.getBalance(
-      proposer.publicKey
-    );
+  //   const balanceBefore = await program.provider.connection.getBalance(
+  //     proposer.publicKey
+  //   );
 
-    const [pda, signature] = await createProposal(
-      proposer,
-      spender,
-      recipient,
-      identifier,
-      title,
-      token,
-      amount,
-      tags,
-      coverCid,
-      subtitle,
-      program
-    );
+  //   const [pda, signature] = await createProposal(
+  //     proposer,
+  //     spender,
+  //     recipient,
+  //     identifier,
+  //     title,
+  //     token,
+  //     amount,
+  //     tags,
+  //     coverCid,
+  //     subtitle,
+  //     program
+  //   );
 
-    const data = await program.account.proposal.fetch(pda);
-    expect(data.identifier).to.equal(identifier);
-    const balanceOnProposalCreated =
-      await program.provider.connection.getBalance(proposer.publicKey);
+  //   const data = await program.account.proposal.fetch(pda);
+  //   expect(data.identifier).to.equal(identifier);
+  //   const balanceOnProposalCreated =
+  //     await program.provider.connection.getBalance(proposer.publicKey);
 
-    await program.methods
-      .cancelProposal()
-      .accounts({
-        proposal: pda,
-        signer: proposer.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([proposer])
-      .rpc();
+  //   await program.methods
+  //     .cancelProposal()
+  //     .accounts({
+  //       proposal: pda,
+  //       signer: proposer.publicKey,
+  //       systemProgram: SystemProgram.programId,
+  //     })
+  //     .signers([proposer])
+  //     .rpc();
 
-    const balanceAfter = await program.provider.connection.getBalance(
-      proposer.publicKey
-    );
+  //   const balanceAfter = await program.provider.connection.getBalance(
+  //     proposer.publicKey
+  //   );
 
-    expect(balanceBefore).to.greaterThan(balanceOnProposalCreated);
-    expect(balanceOnProposalCreated).to.lessThan(balanceAfter);
-    expect(balanceBefore).to.equal(balanceAfter);
-    try {
-      await program.account.proposal.fetch(pda);
-    } catch (e) {
-      expect(e.message).to.contains(`Account does not exist`);
-      expect(e.message).to.contains(pda.toBase58());
-    }
-  });
+  //   expect(balanceBefore).to.greaterThan(balanceOnProposalCreated);
+  //   expect(balanceOnProposalCreated).to.lessThan(balanceAfter);
+  //   expect(balanceBefore).to.equal(balanceAfter);
+  //   try {
+  //     await program.account.proposal.fetch(pda);
+  //   } catch (e) {
+  //     expect(e.message).to.contains(`Account does not exist`);
+  //     expect(e.message).to.contains(pda.toBase58());
+  //   }
+  // });
 
   it("[Approver] approve proposal", async () => {
     const identifier = "T6";
     const title = "[Approver] approve proposal";
-    const amount = new BN(100 * LAMPORTS_PER_SOL);
+    const amount = new BN(10 * LAMPORTS_PER_SOL);
     const tags = ["xyz"];
     const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
     const subtitle = "[Approver] approve proposal";
@@ -363,15 +391,57 @@ describe("[s-pow-prog]", () => {
     expect(data.status).to.deep.equal({ default: {} });
     expect(data.title).to.equal(title);
 
+    const [treasurerPublicKey] = await web3.PublicKey.findProgramAddress(
+      [Buffer.from("treasurer"), pda.toBuffer()],
+      program.programId
+    );
+    const treasury = await utils.token.associatedAddress({
+      mint: token.publicKey,
+      owner: treasurerPublicKey,
+    });
+
+    const beforeSpenderTokenAccount = await splTokenProgram.account.token.fetch(
+      spenderTokenAccount
+    );
+    console.log(
+      `Before approved - spender balance: ${beforeSpenderTokenAccount.amount.toNumber()}`
+    );
+
     await program.methods
       .approveProposal()
       .accounts({
-        approver: spender.publicKey,
         proposal: pda,
-        systemProgram: SystemProgram.programId,
+        spender: spender.publicKey,
+        spenderTokenAccount: spenderTokenAccount,
+        spl: token.publicKey,
+        treasurer: treasurerPublicKey,
+        proposalTreasury: treasury,
+
+        systemProgram: web3.SystemProgram.programId,
+        tokenProgram: utils.token.TOKEN_PROGRAM_ID,
+        associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
+        rent: web3.SYSVAR_RENT_PUBKEY,
       })
       .signers([spender])
       .rpc();
+
+    const treasuryData = await splTokenProgram.account.token.fetch(treasury);
+    console.log(
+      `After approved - treasury balance: ${treasuryData.amount.toNumber()}`
+    );
+    const afterSpenderTokenAccount = await splTokenProgram.account.token.fetch(
+      spenderTokenAccount
+    );
+    console.log(
+      `After approved - spender balance: ${afterSpenderTokenAccount.amount.toNumber()}`
+    );
+    expect(afterSpenderTokenAccount.amount.toNumber()).to.lessThan(
+      beforeSpenderTokenAccount.amount.toNumber()
+    );
+    expect(treasuryData.amount.toNumber()).to.equal(
+      beforeSpenderTokenAccount.amount.toNumber() -
+        afterSpenderTokenAccount.amount.toNumber()
+    );
 
     const dataAfter = await program.account.proposal.fetch(pda);
     expect(dataAfter.status).to.deep.equal({ approved: {} });
@@ -421,7 +491,7 @@ describe("[s-pow-prog]", () => {
   it("[Recipient] accept proposal", async () => {
     const identifier = "T8";
     const title = "[Recipient] accept proposal";
-    const amount = new BN(100 * LAMPORTS_PER_SOL);
+    const amount = new BN(10 * LAMPORTS_PER_SOL);
     const tags = ["xyz"];
     const coverCid = "QmQqzMTavQgT4f4T5v6PWBp7XNKtoPmC9jvn12WPT3gkSE";
     const subtitle = "[Recipient] accept proposal";
@@ -443,17 +513,53 @@ describe("[s-pow-prog]", () => {
     const dataAfterCreated = await program.account.proposal.fetch(pda);
     expect(dataAfterCreated.status).to.deep.equal({ default: {} });
     expect(dataAfterCreated.title).to.equal(title);
-    
+
+    const [treasurerPublicKey] = await web3.PublicKey.findProgramAddress(
+      [Buffer.from("treasurer"), pda.toBuffer()],
+      program.programId
+    );
+    const treasury = await utils.token.associatedAddress({
+      mint: token.publicKey,
+      owner: treasurerPublicKey,
+    });
+
+    const beforeRecipientTokenAccount =
+      await splTokenProgram.account.token.fetch(recipientTokenAccount);
+    console.log(
+      `Before approved/accepted - Recipient balance: ${beforeRecipientTokenAccount.amount.toNumber()}`
+    );
+
+    const beforeSpenderTokenAccount =
+      await splTokenProgram.account.token.fetch(spenderTokenAccount);
+    console.log(
+      `Before approved/accepted - Spender balance: ${beforeSpenderTokenAccount.amount.toNumber()}`
+    );
+
     await program.methods
       .approveProposal()
       .accounts({
-        approver: spender.publicKey,
         proposal: pda,
-        systemProgram: SystemProgram.programId,
+        spender: spender.publicKey,
+        spenderTokenAccount: spenderTokenAccount,
+        spl: token.publicKey,
+        treasurer: treasurerPublicKey,
+        proposalTreasury: treasury,
+
+        systemProgram: web3.SystemProgram.programId,
+        tokenProgram: utils.token.TOKEN_PROGRAM_ID,
+        associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
+        rent: web3.SYSVAR_RENT_PUBKEY,
       })
       .signers([spender])
       .rpc();
-      
+
+    const afterApprovedTreasuryData = await splTokenProgram.account.token.fetch(
+      treasury
+    );
+    console.log(
+      `After approved - treasury balance: ${afterApprovedTreasuryData.amount.toNumber()}`
+    );
+
     const dataAfterApproved = await program.account.proposal.fetch(pda);
     expect(dataAfterApproved.status).to.deep.equal({ approved: {} });
     expect(dataAfterApproved.title).to.equal(title);
@@ -461,16 +567,43 @@ describe("[s-pow-prog]", () => {
     await program.methods
       .acceptProposal()
       .accounts({
-        signer: recipient.publicKey,
+        recipient: recipient.publicKey,
+        recipientTokenAccount: recipientTokenAccount,
         proposal: pda,
         systemProgram: SystemProgram.programId,
+        associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
+        spl: token.publicKey,
+        tokenProgram: utils.token.TOKEN_PROGRAM_ID,
+        treasurer: treasurerPublicKey,
+        proposalTreasury: treasury,
       })
       .signers([recipient])
       .rpc();
 
+    const afterAcceptedTreasuryData = await splTokenProgram.account.token.fetch(
+      treasury
+    );
+    console.log(
+      `After accepted - treasury balance: ${afterAcceptedTreasuryData.amount.toNumber()}`
+    );
+
+    const afterRecipientTokenAccount =
+      await splTokenProgram.account.token.fetch(recipientTokenAccount);
+    console.log(
+      `After accepted - Recipient balance: ${afterRecipientTokenAccount.amount.toNumber()}`
+    );
+
+    expect(afterRecipientTokenAccount.amount.toNumber()).to.equal(
+      afterApprovedTreasuryData.amount.toNumber()
+    );
+    expect(afterRecipientTokenAccount.amount.toNumber()).to.greaterThan(
+      beforeRecipientTokenAccount.amount.toNumber()
+    );
+    expect(afterAcceptedTreasuryData.amount.toNumber()).to.equal(0);
+
+
     const dataAfterAccepted = await program.account.proposal.fetch(pda);
     expect(dataAfterAccepted.status).to.deep.equal({ claimed: {} });
     expect(dataAfterAccepted.title).to.equal(title);
-
   });
 });

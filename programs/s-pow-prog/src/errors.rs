@@ -23,5 +23,8 @@ pub enum ErrorCodes {
   InvalidAccount,
   #[msg("Invalid proposal status")]
   InvalidProposalStatus,
+
+  #[msg("Cannot find treasurer account")]
+  NoTreasurerBump,
 	
 }

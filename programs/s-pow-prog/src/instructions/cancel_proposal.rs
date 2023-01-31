@@ -24,11 +24,27 @@ pub struct CancelProposal<'info> {
 pub fn exec(ctx: Context<CancelProposal>) -> Result<()> {
     let proposal = &mut ctx.accounts.proposal;
 
+    
     // Only allow cancel of proposals that are not approved
-    if proposal.status != ApprovalStatus::Approved {
-        // Close the proposal account and return the lamports to the proposer
-        proposal.close(ctx.accounts.signer.to_account_info())?
-    }
+    if proposal.status == ApprovalStatus::Approved {
+        return err!(ErrorCodes::InvalidProposalStatus);
+    } 
+
+    // TODO: Refund for spender
+
+    // transfer token from the spender to a treasury account
+    // let transfer_ctx = CpiContext::new(
+    //     ctx.accounts.token_program.to_account_info(),
+    //     token::Transfer {
+    //       from: ctx.accounts.spender_token_account.to_account_info(),
+    //       to: ctx.accounts.proposal_treasury.to_account_info(),
+    //       authority: ctx.accounts.spender.to_account_info(),
+    //     },
+    //   );
+    // token::transfer(transfer_ctx, proposal.amount)?;
+
+    // Close the proposal account and return the lamports to the proposer
+    proposal.close(ctx.accounts.signer.to_account_info())?;
 
     // Emit the event ProposalCancelledEvent
     emit!(ProposalCancelledEvent {
